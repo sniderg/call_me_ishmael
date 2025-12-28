@@ -1,0 +1,14 @@
+[project]
+name = "call-me-ishmael"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "ebooklib>=0.20",
+    "functions-framework>=3.10.0",
+    "google-cloud-storage>=3.7.0",
+    "lxml>=6.0.2",
+    "python-dotenv>=1.2.1",
+]
