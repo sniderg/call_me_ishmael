@@ -41,8 +41,23 @@ def get_last_chunk_id(book_title, bucket_name=None):
 
 def update_state(book_title, chunk_id, bucket_name=None):
     state = load_state(bucket_name)
-    state[book_title] = {
-        "last_chunk_id": chunk_id,
-        "last_sent_at": datetime.now().isoformat()
-    }
+    
+    # Get existing book state or initialize
+    book_state = state.get(book_title, {})
+    
+    # Update fields (preserving others like 'active')
+    book_state["last_chunk_id"] = chunk_id
+    book_state["last_sent_at"] = datetime.now().isoformat()
+    
+    state[book_title] = book_state
+    save_state(state, bucket_name)
+
+def set_book_active(book_title, active: bool, bucket_name=None):
+    state = load_state(bucket_name)
+    
+    # Get existing book state or initialize
+    book_state = state.get(book_title, {})
+    book_state["active"] = active
+    
+    state[book_title] = book_state
     save_state(state, bucket_name)

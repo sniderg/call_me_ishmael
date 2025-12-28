@@ -14,29 +14,44 @@ def upload_chunks(bucket_name, source_dir="book_output"):
         print(f"Bucket {bucket_name} not found. Please create it first.")
         return
 
-    # 1. Upload Chunks
-    files = [f for f in os.listdir(source_dir) if f.endswith(".html")]
-    if not files:
-        print(f"No HTML files found in {source_dir}. Run chunker first.")
-        # If no chunks, we still might want to upload the EPUB, so don't return here.
-    else:
-        print(f"Found {len(files)} chunks to upload...")
+    print(f"Uploading to gs://{bucket_name}/...")
+    
+    # 1. Identify Books from book_output directory
+    if not os.path.exists(source_dir):
+        print(f"Directory {source_dir} not found.")
+        return
+
+    book_ids = [d for d in os.listdir(source_dir) if os.path.isdir(os.path.join(source_dir, d))]
+    
+    if not book_ids:
+        print("No book directories found in book_output/")
+        return
+
+    for book_id in book_ids:
+        print(f"--- Processing {book_id} ---")
+        book_dir = os.path.join(source_dir, book_id)
+        
+        # A. Upload Chunks
+        files = [f for f in os.listdir(book_dir) if f.endswith(".html")]
         for filename in files:
-            local_path = os.path.join(source_dir, filename)
-            blob_name = f"chunks/{filename}"
+            local_path = os.path.join(book_dir, filename)
+            # GCS Path: books/<book_id>/chunks/<filename>
+            blob_name = f"books/{book_id}/chunks/{filename}"
             
             blob = bucket.blob(blob_name)
             blob.upload_from_filename(local_path)
             print(f"Uploading {filename} -> gs://{bucket_name}/{blob_name}")
-        
-    # 2. Upload Original EPUB
-    epub_local = "books/moby_dick.epub"
-    if os.path.exists(epub_local):
-        blob_epub = bucket.blob("moby_dick.epub") # Upload to root of bucket
-        blob_epub.upload_from_filename(epub_local)
-        print(f"Uploading {epub_local} -> gs://{bucket_name}/moby_dick.epub")
-    else:
-        print(f"Warning: {epub_local} not found, skipping EPUB upload.")
+            
+        # B. Upload EPUB
+        # Assuming local epub is at books/<book_id>.epub
+        epub_local = f"books/{book_id}.epub"
+        if os.path.exists(epub_local):
+            blob_name = f"books/{book_id}/ebook.epub"
+            blob = bucket.blob(blob_name)
+            blob.upload_from_filename(epub_local)
+            print(f"Uploading {epub_local} -> gs://{bucket_name}/{blob_name}")
+        else:
+            print(f"Warning: {epub_local} not found, skipping EPUB upload.")
 
     print("Upload complete!")
 
