@@ -207,3 +207,6 @@ marimo/_lsp/
 
 # Book output
 book_output/
+
+# Firebase
+.firebase/
