@@ -249,6 +249,12 @@ def process_epub(epub_path, book_id, target_words=2500):
 
         # Get all top-level tags to iterate from the modified soup
         tags = soup.body.find_all(recursive=False)
+        
+        # Flatten wrapper tags (section, div, article) to expose content
+        # accurately, allowing us to split large chapters and find headers nested in sections
+        while len(tags) == 1 and tags[0].name in ['div', 'section', 'article', 'main']:
+            tags = tags[0].find_all(recursive=False)
+            
         if not tags:
             continue
             
@@ -271,10 +277,20 @@ def process_epub(epub_path, book_id, target_words=2500):
             
             # --- EXTRACT CHAPTER TITLES ---
             # If tag is H1 or H2, treat as chapter title
+            # Also handle hgroup (common in standardebooks)
+            
+            title_text = None
             if tag.name in ['h1', 'h2']:
-                raw_text = tag.get_text().strip()
-                if raw_text and len(raw_text) < 100: # Sanity check length
-                    cleaned_text = clean_title(raw_text)
+                title_text = tag.get_text().strip()
+            elif tag.name == 'hgroup':
+                 # Find first h1/h2 in group
+                 header = tag.find(['h1', 'h2'])
+                 if header:
+                     title_text = header.get_text().strip()
+
+            if title_text:
+                if len(title_text) < 100: # Sanity check length
+                    cleaned_text = clean_title(title_text)
                     last_chapter_title = cleaned_text
                     if cleaned_text not in current_chapters:
                         current_chapters.append(cleaned_text)
