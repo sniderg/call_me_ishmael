@@ -92,20 +92,66 @@ def process_epub(epub_path, book_id, target_words=2500):
     for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
         soup = BeautifulSoup(item.get_body_content(), 'html.parser')
         
-        # 2. Iterate over top-level elements (p, h1, div, etc.)
-        for tag in soup.body.find_all(recursive=False):
-            tag_html = str(tag)
-            text_len = len(tag.get_text().split())
+        # Get all top-level tags to iterate
+        tags = soup.body.find_all(recursive=False)
+        if not tags:
+            continue
             
+        # Efficiently calculate remaining words for this chapter
+        # Doing a pre-pass to count words might be safer than guessing
+        chapter_word_counts = [len(tag.get_text().split()) for tag in tags]
+        total_chapter_words = sum(chapter_word_counts)
+        words_processed_in_chapter = 0
+        
+        for i, tag in enumerate(tags):
+            tag_html = str(tag)
+            text_len = chapter_word_counts[i]
+            
+            # Check remaining words in this chapter (including current tag)
+            remaining_in_chapter = total_chapter_words - words_processed_in_chapter
+            
+            # Check if adding this would exceed limit
             if current_word_count + text_len > target_words and current_word_count > 500:
-                all_chunks_data.append(current_blocks)
                 
-                # Reset
-                current_blocks = []
-                current_word_count = 0
+                # RULE 1: Relax limit if we can finish the chapter soon
+                # If less than 500 words remain in the chapter, just keep going
+                if remaining_in_chapter < 750:
+                    pass # Don't split
+                else:
+                    # We need to split
+                    
+                    # RULE 2: Avoid ending on a header
+                    # Check if the LAST item added was a header
+                    last_block_is_header = False
+                    if current_blocks:
+                        last_html = current_blocks[-1].strip()
+                        # Simple check for header tags
+                        if any(last_html.startswith(f"<{h}") for h in ['h1','h2','h3','h4','h5','h6']):
+                            last_block_is_header = True
+                    
+                    if last_block_is_header:
+                        # Pull the header back out of the finished chunk
+                        header_to_move = current_blocks.pop()
+                        
+                        # Save the chunk (minus the header)
+                        all_chunks_data.append(current_blocks)
+                        
+                        # Start new chunk with that header
+                        current_blocks = [header_to_move]
+                        # Recalculate word count for just this header (approx is fine, or re-measure)
+                        # We can just reset current_word_count to text_len(header) but we don't have it explicitly stored.
+                        # Let's re-measure to be safe.
+                        header_soup = BeautifulSoup(header_to_move, 'html.parser')
+                        current_word_count = len(header_soup.get_text().split())
+                    else:
+                        # Normal split
+                        all_chunks_data.append(current_blocks)
+                        current_blocks = []
+                        current_word_count = 0
             
             current_blocks.append(tag_html)
             current_word_count += text_len
+            words_processed_in_chapter += text_len
 
     # 3. Capture final chunk
     if current_blocks:
