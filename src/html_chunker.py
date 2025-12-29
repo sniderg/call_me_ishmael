@@ -98,6 +98,22 @@ def create_html_chunk(content_blocks, chunk_id, total_chunks, book_title, book_i
         f.write(html_template)
     return filename
 
+def clean_title(text):
+    """Normalize chapter titles."""
+    if not text:
+        return ""
+    
+    # Handle all uppercase (e.g. "CHAPTER 1. THE WHALE")
+    if text.isupper():
+        text = text.title()
+    
+    # Handle specific "CHAPTER" casing if mixed (e.g. "CHAPTER 1. The Whale")
+    # We replace "CHAPTER" with "Chapter" regardless of case, if it starts the line
+    if text.upper().startswith("CHAPTER"):
+        text = "Chapter" + text[7:]
+        
+    return text.strip()
+
 def process_epub(epub_path, book_id, target_words=2500):
     book = epub.read_epub(epub_path)
     # Try to get title, fall back to book_id if missing
@@ -112,6 +128,7 @@ def process_epub(epub_path, book_id, target_words=2500):
     
     # Track chapters found in the current buffer
     current_chapters = []
+    last_chapter_title = "Start" # Default for beginning
     
     # 1. Iterate over every document in the book (Chapters, Intro, etc.)
     for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
@@ -134,10 +151,12 @@ def process_epub(epub_path, book_id, target_words=2500):
             # --- EXTRACT CHAPTER TITLES ---
             # If tag is H1 or H2, treat as chapter title
             if tag.name in ['h1', 'h2']:
-                header_text = tag.get_text().strip()
-                if header_text and len(header_text) < 100: # Sanity check length
-                    if header_text not in current_chapters:
-                        current_chapters.append(header_text)
+                raw_text = tag.get_text().strip()
+                if raw_text and len(raw_text) < 100: # Sanity check length
+                    cleaned_text = clean_title(raw_text)
+                    last_chapter_title = cleaned_text
+                    if cleaned_text not in current_chapters:
+                        current_chapters.append(cleaned_text)
 
             # Check remaining words in this chapter (including current tag)
             remaining_in_chapter = total_chapter_words - words_processed_in_chapter
@@ -158,26 +177,36 @@ def process_epub(epub_path, book_id, target_words=2500):
                     
                     if last_block_is_header:
                         header_to_move = current_blocks.pop()
-                        # If we move a header, we must also move it from 'current_chapters' 
-                        # to the next chunk if it was just added. 
-                        # (Simplification: just add it to next chunk's chapters, it's okay if it appears in both manifests slightly)
-                        
+ 
+                        # Save current chunk
+                        # Determine label: if no new chapters, use continued
+                        chunk_labels = list(current_chapters)
+                        if not chunk_labels:
+                            chunk_labels = [f"{last_chapter_title} (cont.)"]
+
                         all_chunks_data.append({
                             'blocks': current_blocks,
-                            'chapters': list(current_chapters) # Snapshot
+                            'chapters': chunk_labels
                         })
                         
                         current_blocks = [header_to_move]
                         header_soup = BeautifulSoup(header_to_move, 'html.parser')
                         current_word_count = len(header_soup.get_text().split())
                         
-                        # Reset chapters for next chunk, but re-add the moved header
-                        header_text = header_soup.get_text().strip()
+                        # Reset: The moved header is now the "current" chapter for the next chunk
+                        header_text = clean_title(header_soup.get_text().strip())
                         current_chapters = [header_text] if header_text else []
+                        if header_text:
+                            last_chapter_title = header_text
                     else:
+                        # Determine label
+                        chunk_labels = list(current_chapters)
+                        if not chunk_labels:
+                            chunk_labels = [f"{last_chapter_title} (cont.)"]
+
                         all_chunks_data.append({
                             'blocks': current_blocks,
-                            'chapters': list(current_chapters)
+                            'chapters': chunk_labels
                         })
                         current_blocks = []
                         current_word_count = 0
@@ -189,9 +218,13 @@ def process_epub(epub_path, book_id, target_words=2500):
 
     # 3. Capture final chunk
     if current_blocks:
+        chunk_labels = list(current_chapters)
+        if not chunk_labels:
+             chunk_labels = [f"{last_chapter_title} (cont.)"]
+             
         all_chunks_data.append({
             'blocks': current_blocks,
-            'chapters': list(current_chapters)
+            'chapters': chunk_labels
         })
         
     # 4. Generate Files & Manifest
