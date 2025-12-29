@@ -3,14 +3,29 @@ import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
 
-def create_html_chunk(content_blocks, chunk_id, total_chunks, book_title, book_id):
+import json
+
+def create_html_chunk(content_blocks, chunk_id, total_chunks, book_title, book_id, chapter_list=None, next_chunk_id=None):
     """Wraps the raw paragraphs in a nice HTML email template."""
     
     # GCS Authenticated URL (requires Google login)
     epub_url = f"https://storage.cloud.google.com/call-me-ishmael-graydon/books/{book_id}/ebook.epub"
     
-    # Firebase Hosting URL
+    # Firebase Hosting URLs
+    index_url = f"https://gen-lang-client-0138429727.web.app/{book_id}/"
     hosting_url = f"https://gen-lang-client-0138429727.web.app/{book_id}/chunk_{chunk_id:03d}.html"
+    
+    if next_chunk_id:
+        next_url = f"https://gen-lang-client-0138429727.web.app/{book_id}/chunk_{next_chunk_id:03d}.html"
+        footer_link = f'<a href="{next_url}">Jump to tomorrow\'s part</a>'
+    else:
+        footer_link = "<span>End of Book</span>"
+
+    # Format chapter info
+    chapter_info = ""
+    if chapter_list:
+        joined_chapters = ", ".join(chapter_list)
+        chapter_info = f", covering: {joined_chapters}"
 
     html_template = f"""
     <!DOCTYPE html>
@@ -50,17 +65,24 @@ def create_html_chunk(content_blocks, chunk_id, total_chunks, book_title, book_i
                 color: #888;
                 text-decoration: underline;
             }}
+            .book-title a {{
+                color: #2c3e50;
+                text-decoration: none;
+            }}
+            .book-title a:hover {{
+                text-decoration: underline;
+            }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>{book_title} <span style="font-size:0.6em; color:#777; font-weight: normal;">(Part {chunk_id} of {total_chunks})</span></h2>
+             <h2 class="book-title"><a href="{index_url}">{book_title}</a> <span style="font-size:0.6em; color:#777; font-weight: normal;">(Part {chunk_id} of {total_chunks}{chapter_info})</span></h2>
             
             {"".join(content_blocks)}
             
             <div class="footer">
                 <p>End of Part {chunk_id}. Next part arrives tomorrow.</p>
-                <p><a href="{hosting_url}">Read this part online</a> | <a href="{epub_url}">Download full eBook</a></p>
+                <p><a href="{hosting_url}">Read this part online</a> | {footer_link}</p>
             </div>
         </div>
     </body>
@@ -88,6 +110,9 @@ def process_epub(epub_path, book_id, target_words=2500):
     current_word_count = 0
     all_chunks_data = [] # Store chunks temporarily
     
+    # Track chapters found in the current buffer
+    current_chapters = []
+    
     # 1. Iterate over every document in the book (Chapters, Intro, etc.)
     for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
         soup = BeautifulSoup(item.get_body_content(), 'html.parser')
@@ -98,7 +123,6 @@ def process_epub(epub_path, book_id, target_words=2500):
             continue
             
         # Efficiently calculate remaining words for this chapter
-        # Doing a pre-pass to count words might be safer than guessing
         chapter_word_counts = [len(tag.get_text().split()) for tag in tags]
         total_chapter_words = sum(chapter_word_counts)
         words_processed_in_chapter = 0
@@ -107,6 +131,14 @@ def process_epub(epub_path, book_id, target_words=2500):
             tag_html = str(tag)
             text_len = chapter_word_counts[i]
             
+            # --- EXTRACT CHAPTER TITLES ---
+            # If tag is H1 or H2, treat as chapter title
+            if tag.name in ['h1', 'h2']:
+                header_text = tag.get_text().strip()
+                if header_text and len(header_text) < 100: # Sanity check length
+                    if header_text not in current_chapters:
+                        current_chapters.append(header_text)
+
             # Check remaining words in this chapter (including current tag)
             remaining_in_chapter = total_chapter_words - words_processed_in_chapter
             
@@ -114,40 +146,42 @@ def process_epub(epub_path, book_id, target_words=2500):
             if current_word_count + text_len > target_words and current_word_count > 500:
                 
                 # RULE 1: Relax limit if we can finish the chapter soon
-                # If less than 500 words remain in the chapter, just keep going
                 if remaining_in_chapter < 750:
                     pass # Don't split
                 else:
-                    # We need to split
-                    
                     # RULE 2: Avoid ending on a header
-                    # Check if the LAST item added was a header
                     last_block_is_header = False
                     if current_blocks:
                         last_html = current_blocks[-1].strip()
-                        # Simple check for header tags
                         if any(last_html.startswith(f"<{h}") for h in ['h1','h2','h3','h4','h5','h6']):
                             last_block_is_header = True
                     
                     if last_block_is_header:
-                        # Pull the header back out of the finished chunk
                         header_to_move = current_blocks.pop()
+                        # If we move a header, we must also move it from 'current_chapters' 
+                        # to the next chunk if it was just added. 
+                        # (Simplification: just add it to next chunk's chapters, it's okay if it appears in both manifests slightly)
                         
-                        # Save the chunk (minus the header)
-                        all_chunks_data.append(current_blocks)
+                        all_chunks_data.append({
+                            'blocks': current_blocks,
+                            'chapters': list(current_chapters) # Snapshot
+                        })
                         
-                        # Start new chunk with that header
                         current_blocks = [header_to_move]
-                        # Recalculate word count for just this header (approx is fine, or re-measure)
-                        # We can just reset current_word_count to text_len(header) but we don't have it explicitly stored.
-                        # Let's re-measure to be safe.
                         header_soup = BeautifulSoup(header_to_move, 'html.parser')
                         current_word_count = len(header_soup.get_text().split())
+                        
+                        # Reset chapters for next chunk, but re-add the moved header
+                        header_text = header_soup.get_text().strip()
+                        current_chapters = [header_text] if header_text else []
                     else:
-                        # Normal split
-                        all_chunks_data.append(current_blocks)
+                        all_chunks_data.append({
+                            'blocks': current_blocks,
+                            'chapters': list(current_chapters)
+                        })
                         current_blocks = []
                         current_word_count = 0
+                        current_chapters = []
             
             current_blocks.append(tag_html)
             current_word_count += text_len
@@ -155,15 +189,37 @@ def process_epub(epub_path, book_id, target_words=2500):
 
     # 3. Capture final chunk
     if current_blocks:
-        all_chunks_data.append(current_blocks)
+        all_chunks_data.append({
+            'blocks': current_blocks,
+            'chapters': list(current_chapters)
+        })
         
-    # 4. Generate Files with Total Count
+    # 4. Generate Files & Manifest
     total_chunks = len(all_chunks_data)
-    for i, blocks in enumerate(all_chunks_data):
+    manifest = []
+    
+    for i, data in enumerate(all_chunks_data):
         chunk_num = i + 1
-        create_html_chunk(blocks, chunk_num, total_chunks, title, book_id)
+        blocks = data['blocks']
+        chapters = data['chapters']
         
-    print(f"Created {total_chunks} chunks for '{title}'")
+        # Determine next chunk ID for link
+        next_chunk_id = (chunk_num + 1) if chunk_num < total_chunks else None
+        
+        create_html_chunk(blocks, chunk_num, total_chunks, title, book_id, 
+                          chapter_list=chapters, next_chunk_id=next_chunk_id)
+        
+        manifest.append({
+            "chunk_id": chunk_num,
+            "chapters": chapters
+        })
+
+    # Save Manifest
+    manifest_path = f"book_output/{book_id}/manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+        
+    print(f"Created {total_chunks} chunks & manifest for '{title}'")
 
 # --- USAGE ---
 if __name__ == "__main__":

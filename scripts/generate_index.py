@@ -9,8 +9,21 @@ def generate_index(output_dir="book_output"):
     book_links = ""
     
     for book_id in book_dirs:
-        # Skip if it's not a book folder (e.g. random dir) - though we shouldn't have any
+        # Skip if it's not a book folder
         book_path = os.path.join(output_dir, book_id)
+        
+        # Load Manifest if available
+        import json
+        manifest = {}
+        manifest_path = os.path.join(book_path, "manifest.json")
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest_list = json.load(f)
+                    # Convert list to dict for lookup: {1: ["Ch1"], 2: ...}
+                    manifest = {item["chunk_id"]: item["chapters"] for item in manifest_list}
+            except Exception as e:
+                print(f"Warning: Failed to load manifest for {book_id}: {e}")
         
         # 2. Generate Index for THIS Book
         html_files = sorted(glob.glob(os.path.join(book_path, "chunk_*.html")))
@@ -20,8 +33,16 @@ def generate_index(output_dir="book_output"):
         list_items = ""
         for file_path in html_files:
             filename = os.path.basename(file_path)
-            chunk_id = filename.replace("chunk_", "").replace(".html", "")
-            list_items += f'<li><a href="{filename}">Part {chunk_id}</a></li>\n'
+            chunk_id_str = filename.replace("chunk_", "").replace(".html", "")
+            chunk_id = int(chunk_id_str)
+            
+            # Get chapter info
+            chapters = manifest.get(chunk_id, [])
+            chapter_text = ""
+            if chapters:
+                chapter_text = f' <span class="chapters">({", ".join(chapters)})</span>'
+            
+            list_items += f'<li><a href="{filename}">Part {chunk_id_str}</a>{chapter_text}</li>\n'
             
         book_title = book_id.replace("_", " ").title()
         
@@ -38,6 +59,7 @@ def generate_index(output_dir="book_output"):
                 li {{ margin: 10px 0; }}
                 a {{ text-decoration: none; color: #d35400; font-weight: bold; font-size: 1.1em; }}
                 a:hover {{ text-decoration: underline; }}
+                .chapters {{ font-size: 0.9em; color: #777; margin-left: 10px; }}
                 .back {{ margin-top: 20px; display: block; font-size: 0.9em; color: #777; }}
             </style>
         </head>
@@ -57,6 +79,7 @@ def generate_index(output_dir="book_output"):
         print(f"Generated index for {book_id}")
         
         # Add to main library list
+        # Optionally show book author or chunk count here if we wanted
         book_links += f'<li><a href="{book_id}/index.html">{book_title}</a></li>\n'
 
     # 3. Generate Root Library Index
@@ -73,6 +96,8 @@ def generate_index(output_dir="book_output"):
             li {{ margin: 15px 0; font-size: 1.2em; }}
             a {{ text-decoration: none; color: #2c3e50; font-weight: bold; }}
             a:hover {{ text-decoration: underline; color: #d35400; }}
+            .footer {{ margin-top: 50px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 0.9em; color: #666; }}
+            .footer a {{ color: #666; font-weight: normal; }}
         </style>
     </head>
     <body>
@@ -81,6 +106,9 @@ def generate_index(output_dir="book_output"):
         <ul>
             {book_links}
         </ul>
+        <div class="footer">
+            <p>Project by Graydon Snider. <a href="https://github.com/sniderg/call_me_ishmael">View Source on GitHub</a></p>
+        </div>
     </body>
     </html>
     """
