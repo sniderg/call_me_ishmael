@@ -236,8 +236,8 @@ def process_epub(epub_path, book_id, target_words=2500):
                         f.write(img_item.get_content())
                 
                 # Update the source to point to our hosted images folder
-                # We use specific style to constrain images in email/web
-                img_tag['src'] = f"images/{img_filename}"
+                # We use absolute URL so it works in Emails AND on the website (regardless of current path/route)
+                img_tag['src'] = f"https://call-me-ishmael.web.app/{book_id}/images/{img_filename}"
                 img_tag['style'] = "max-width: 100%; height: auto; display: block; margin: 20px auto;"
             else:
                  print(f"Warning: Could not find image {resolved_href}")
