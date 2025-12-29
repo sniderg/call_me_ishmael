@@ -98,6 +98,8 @@ def create_html_chunk(content_blocks, chunk_id, total_chunks, book_title, book_i
         f.write(html_template)
     return filename
 
+import re
+
 def clean_title(text):
     """Normalize chapter titles."""
     if not text:
@@ -108,9 +110,19 @@ def clean_title(text):
         text = text.title()
     
     # Handle specific "CHAPTER" casing if mixed (e.g. "CHAPTER 1. The Whale")
-    # We replace "CHAPTER" with "Chapter" regardless of case, if it starts the line
     if text.upper().startswith("CHAPTER"):
         text = "Chapter" + text[7:]
+
+    # Fix Roman Numerals (e.g., "Iii" -> "III", "Iv" -> "IV")
+    # This looks for words that consist entirely of Roman numeral characters
+    def roman_upscale(match):
+        word = match.group(0)
+        # Check if it's purely Roman characters (I, V, X, L, C, D, M)
+        if all(c.upper() in "IVXLCDM" for c in word) and len(word) > 0:
+            return word.upper()
+        return word
+
+    text = re.sub(r'\b[a-zA-Z]+\b', roman_upscale, text)
         
     return text.strip()
 
