@@ -1,6 +1,9 @@
 {
   "hosting": {
+    "site": "call-me-ishmael",
     "public": "book_output",
+    "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",

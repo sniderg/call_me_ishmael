@@ -2,6 +2,14 @@
   "projects": {
     "default": "gen-lang-client-0138429727"
   },
-  "targets": {},
+  "targets": {
+    "gen-lang-client-0138429727": {
+      "hosting": {
+        "ishmael": [
+          "call-me-ishmael"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

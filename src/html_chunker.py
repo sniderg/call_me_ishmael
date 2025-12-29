@@ -12,11 +12,11 @@ def create_html_chunk(content_blocks, chunk_id, total_chunks, book_title, book_i
     epub_url = f"https://storage.cloud.google.com/call-me-ishmael-graydon/books/{book_id}/ebook.epub"
     
     # Firebase Hosting URLs
-    index_url = f"https://gen-lang-client-0138429727.web.app/{book_id}/"
-    hosting_url = f"https://gen-lang-client-0138429727.web.app/{book_id}/chunk_{chunk_id:03d}.html"
+    index_url = f"https://call-me-ishmael.web.app/{book_id}/"
+    hosting_url = f"https://call-me-ishmael.web.app/{book_id}/chunk_{chunk_id:03d}"
     
     if next_chunk_id:
-        next_url = f"https://gen-lang-client-0138429727.web.app/{book_id}/chunk_{next_chunk_id:03d}.html"
+        next_url = f"https://call-me-ishmael.web.app/{book_id}/chunk_{next_chunk_id:03d}"
         footer_link = f'<a href="{next_url}">Jump to tomorrow\'s part</a>'
     else:
         footer_link = "<span>End of Book</span>"
