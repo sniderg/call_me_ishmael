@@ -51,25 +51,88 @@ def generate_index(output_dir="book_output"):
         <html>
         <head>
             <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{book_title} - Daily Chunks</title>
             <style>
-                body {{ font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; background: #fdf6e3; color: #333; }}
-                h1 {{ border-bottom: 2px solid #ddd; padding-bottom: 10px; }}
-                ul {{ list-style-type: none; padding: 0; }}
-                li {{ margin: 10px 0; }}
-                a {{ text-decoration: none; color: #d35400; font-weight: bold; font-size: 1.1em; }}
-                a:hover {{ text-decoration: underline; }}
-                .chapters {{ font-size: 0.9em; color: #777; margin-left: 10px; }}
-                .back {{ margin-top: 20px; display: block; font-size: 0.9em; color: #777; }}
+                :root {{
+                    --bg-color: #fdf6e3;
+                    --card-bg: #ffffff;
+                    --text-color: #2c3e50;
+                    --accent-color: #d35400;
+                    --link-color: #2980b9;
+                    --border-color: #ecf0f1;
+                }}
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
+                    margin: 0;
+                    padding: 20px;
+                    line-height: 1.6;
+                }}
+                .container {{
+                    max-width: 800px;
+                    margin: 0 auto;
+                    background: var(--card-bg);
+                    padding: 40px;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                }}
+                h1 {{
+                    font-family: Georgia, serif;
+                    color: var(--text-color);
+                    border-bottom: 2px solid var(--border-color);
+                    padding-bottom: 15px;
+                    margin-top: 0;
+                }}
+                .toc-list {{
+                    list-style: none;
+                    padding: 0;
+                    margin-top: 30px;
+                }}
+                .toc-item {{
+                    border-bottom: 1px solid var(--border-color);
+                    padding: 15px 0;
+                    display: flex;
+                    flex-direction: column;
+                }}
+                .toc-item:last-child {{ border-bottom: none; }}
+                .part-link {{
+                    font-weight: 700;
+                    text-decoration: none;
+                    color: var(--link-color);
+                    font-size: 1.1em;
+                    margin-bottom: 4px;
+                }}
+                .part-link:hover {{ color: var(--accent-color); text-decoration: underline; }}
+                .chapters {{
+                    font-size: 0.9em;
+                    color: #7f8c8d;
+                    font-style: italic;
+                }}
+                .back-link {{
+                    display: inline-block;
+                    margin-top: 30px;
+                    color: #7f8c8d;
+                    text-decoration: none;
+                    font-weight: 500;
+                }}
+                .back-link:hover {{ color: var(--text-color); }}
+                
+                @media (max-width: 600px) {{
+                    .container {{ padding: 20px; }}
+                }}
             </style>
         </head>
         <body>
-            <h1>{book_title}</h1>
-            <p>Table of Contents</p>
-            <ul>
-                {list_items}
-            </ul>
-            <a href="../index.html" class="back">← Back to Library</a>
+            <div class="container">
+                <h1>{book_title}</h1>
+                <p>Table of Contents</p>
+                <ul class="toc-list">
+                    {list_items}
+                </ul>
+                <a href="../index.html" class="back-link">← Back to Library</a>
+            </div>
         </body>
         </html>
         """
@@ -80,7 +143,7 @@ def generate_index(output_dir="book_output"):
         
         # Add to main library list
         # Optionally show book author or chunk count here if we wanted
-        book_links += f'<li><a href="{book_id}/index.html">{book_title}</a></li>\n'
+        book_links += f'<a href="{book_id}/index.html" class="book-card"><h3>{book_title}</h3><span class="arrow">→</span></a>\n'
 
     # 3. Generate Root Library Index
     root_index_html = f"""
@@ -88,26 +151,107 @@ def generate_index(output_dir="book_output"):
     <html>
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Call Me Ishmael - Library</title>
         <style>
-            body {{ font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; background: #fdf6e3; color: #333; }}
-            h1 {{ border-bottom: 2px solid #ddd; padding-bottom: 10px; }}
-            ul {{ list-style-type: none; padding: 0; }}
-            li {{ margin: 15px 0; font-size: 1.2em; }}
-            a {{ text-decoration: none; color: #2c3e50; font-weight: bold; }}
-            a:hover {{ text-decoration: underline; color: #d35400; }}
-            .footer {{ margin-top: 50px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 0.9em; color: #666; }}
-            .footer a {{ color: #666; font-weight: normal; }}
+            :root {{
+                --bg-color: #fdf6e3;
+                --card-bg: #ffffff;
+                --text-color: #2c3e50;
+                --accent-color: #d35400;
+                --hover-bg: #f8f9fa;
+            }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                margin: 0;
+                padding: 40px 20px;
+                line-height: 1.6;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 0 auto;
+            }}
+            header {{
+                text-align: center;
+                margin-bottom: 50px;
+            }}
+            h1 {{
+                font-family: Georgia, serif;
+                font-size: 2.5em;
+                margin-bottom: 10px;
+                color: var(--text-color);
+            }}
+            .subtitle {{
+                color: #7f8c8d;
+                font-size: 1.1em;
+            }}
+            .book-list {{
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }}
+            .book-card {{
+                background: var(--card-bg);
+                padding: 20px 30px;
+                border-radius: 12px;
+                text-decoration: none;
+                color: var(--text-color);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                transition: transform 0.2s, box-shadow 0.2s;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+            .book-card:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            }}
+            .book-card h3 {{
+                margin: 0;
+                font-size: 1.2em;
+                font-weight: 600;
+            }}
+            .arrow {{
+                color: #bdc3c7;
+                font-size: 1.5em;
+                transition: color 0.2s;
+            }}
+            .book-card:hover .arrow {{
+                color: var(--accent-color);
+            }}
+            .footer {{
+                margin-top: 60px;
+                text-align: center;
+                font-size: 0.9em;
+                color: #95a5a6;
+            }}
+            .footer a {{
+                color: #7f8c8d;
+                text-decoration: none;
+                border-bottom: 1px dotted #95a5a6;
+            }}
+            .footer a:hover {{
+                color: var(--accent-color);
+                border-bottom: 1px solid var(--accent-color);
+            }}
         </style>
     </head>
     <body>
-        <h1>Call Me Ishmael: Library</h1>
-        <p>Your collection of daily readings.</p>
-        <ul>
-            {book_links}
-        </ul>
-        <div class="footer">
-            <p>Project by Graydon Snider. <a href="https://github.com/sniderg/call_me_ishmael">View Source on GitHub</a></p>
+        <div class="container">
+            <header>
+                <h1>Call Me Ishmael</h1>
+                <div class="subtitle">Your daily reading companion.</div>
+            </header>
+            
+            <div class="book-list">
+                {book_links}
+            </div>
+            
+            <div class="footer">
+                <p>Project by Graydon Snider. <a href="https://github.com/sniderg/call_me_ishmael">View Source on GitHub</a></p>
+            </div>
         </div>
     </body>
     </html>
