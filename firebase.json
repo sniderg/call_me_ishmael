@@ -3,7 +3,7 @@
     "site": "call-me-ishmael",
     "public": "book_output",
     "cleanUrls": true,
-    "trailingSlash": false,
+    "trailingSlash": true,
     "ignore": [
       "firebase.json",
       "**/.*",
