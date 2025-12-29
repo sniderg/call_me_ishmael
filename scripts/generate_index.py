@@ -42,7 +42,7 @@ def generate_index(output_dir="book_output"):
             if chapters:
                 chapter_text = f' <span class="chapters">({", ".join(chapters)})</span>'
             
-            list_items += f'<li><a href="chunk_{chunk_id_str}" class="part-link">Part {chunk_id_str}</a>{chapter_text}</li>\n'
+            list_items += f'<li><a href="/{book_id}/chunk_{chunk_id_str}" class="part-link">Part {chunk_id_str}</a>{chapter_text}</li>\n'
             
         book_title = book_id.replace("_", " ").title()
         
@@ -131,7 +131,7 @@ def generate_index(output_dir="book_output"):
                 <ul class="toc-list">
                     {list_items}
                 </ul>
-                <a href="../" class="back-link">← Back to Library</a>
+                <a href="/" class="back-link">← Back to Library</a>
             </div>
         </body>
         </html>
