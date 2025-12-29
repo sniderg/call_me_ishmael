@@ -123,6 +123,11 @@ def clean_title(text):
         return word
 
     text = re.sub(r'\b[a-zA-Z]+\b', roman_upscale, text)
+    
+    # If the title is JUST a Roman numeral (e.g. "I", "IV", "X."), prepend "Chapter"
+    # This helps with books like "Through the Looking Glass" that use bare numerals
+    if re.match(r'^[IVXLCDM]+\.?$', text):
+        text = "Chapter " + text.replace(".", "")
         
     return text.strip()
 
