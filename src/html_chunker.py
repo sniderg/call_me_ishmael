@@ -142,7 +142,50 @@ def process_epub(epub_path, book_id, target_words=2500):
     current_chapters = []
     last_chapter_title = "Start" # Default for beginning
     
-    # 1. Iterate over every document in the book (Chapters, Intro, etc.)
+    # 1. Extract Cover Image
+    cover_item = None
+    
+    # Try getting cover by ID from metadata
+    try:
+        cover_id = book.get_metadata('OPF', 'cover')[0][0]
+        cover_item = book.get_item_with_id(cover_id)
+    except:
+        pass
+        
+    # If not found, look for items marked as cover
+    if not cover_item:
+        covers = list(book.get_items_of_type(ebooklib.ITEM_COVER))
+        if covers:
+            cover_item = covers[0]
+            
+    # If still not found, search images for "cover" in name
+    if not cover_item:
+        for img in book.get_items_of_type(ebooklib.ITEM_IMAGE):
+            if 'cover' in img.get_name().lower() or 'cover' in img.get_id().lower():
+                cover_item = img
+                break
+    
+    # Save the cover if found
+    if cover_item:
+        file_name = cover_item.get_name()
+        ext = os.path.splitext(file_name)[1]
+        
+        # If extraction failed or weird name, default to .jpg
+        if not ext or len(ext) > 5:
+            ext = ".jpg"
+            
+        cover_path = f"book_output/{book_id}/cover{ext}"
+        output_dir = f"book_output/{book_id}"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        with open(cover_path, "wb") as f:
+            f.write(cover_item.get_content())
+        print(f"Saved cover image to {cover_path}")
+    else:
+        print("No cover image found.")
+
+    # 2. Iterate over every document in the book (Chapters, Intro, etc.)
     for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
         soup = BeautifulSoup(item.get_body_content(), 'html.parser')
         

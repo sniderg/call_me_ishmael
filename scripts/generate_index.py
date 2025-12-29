@@ -46,6 +46,16 @@ def generate_index(output_dir="book_output"):
             
         book_title = book_id.replace("_", " ").title()
         
+        # Check for cover image
+        cover_url = ""
+        # Check standard extensions
+        possible_covers = glob.glob(os.path.join(book_path, "cover.*"))
+        cover_filename = os.path.basename(possible_covers[0]) if possible_covers else None
+        
+        header_image_html = ""
+        if cover_filename:
+            header_image_html = f'<div class="book-header-image"><img src="{cover_filename}" alt="Book Cover"></div>'
+
         book_index_html = f"""
         <!DOCTYPE html>
         <html>
@@ -78,12 +88,23 @@ def generate_index(output_dir="book_output"):
                     border-radius: 12px;
                     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
                 }}
+                .book-header-image {{
+                    text-align: center;
+                    margin-bottom: 25px;
+                }}
+                .book-header-image img {{
+                    max-width: 200px;
+                    max-height: 300px;
+                    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+                    border-radius: 4px;
+                }}
                 h1 {{
                     font-family: Georgia, serif;
                     color: var(--text-color);
                     border-bottom: 2px solid var(--border-color);
                     padding-bottom: 15px;
                     margin-top: 0;
+                    text-align: center;
                 }}
                 .toc-list {{
                     list-style: none;
@@ -126,8 +147,9 @@ def generate_index(output_dir="book_output"):
         </head>
         <body>
             <div class="container">
+                {header_image_html}
                 <h1>{book_title}</h1>
-                <p>Table of Contents</p>
+                <p style="text-align:center; color:#7f8c8d;">Table of Contents</p>
                 <ul class="toc-list">
                     {list_items}
                 </ul>
@@ -142,8 +164,19 @@ def generate_index(output_dir="book_output"):
         print(f"Generated index for {book_id}")
         
         # Add to main library list
-        # Optionally show book author or chunk count here if we wanted
-        book_links += f'<a href="{book_id}/" class="book-card"><h3>{book_title}</h3><span class="arrow">→</span></a>\n'
+        thumb_html = ""
+        if cover_filename:
+            thumb_html = f'<img src="{book_id}/{cover_filename}" alt="{book_title}" class="book-thumb">'
+            
+        book_links += f"""
+        <a href="{book_id}/" class="book-card">
+            <div class="book-info">
+                {thumb_html}
+                <h3>{book_title}</h3>
+            </div>
+            <span class="arrow">→</span>
+        </a>
+        """
 
     # 3. Generate Root Library Index
     root_index_html = f"""
@@ -194,7 +227,7 @@ def generate_index(output_dir="book_output"):
             }}
             .book-card {{
                 background: var(--card-bg);
-                padding: 20px 30px;
+                padding: 20px;
                 border-radius: 12px;
                 text-decoration: none;
                 color: var(--text-color);
@@ -208,6 +241,18 @@ def generate_index(output_dir="book_output"):
                 transform: translateY(-2px);
                 box-shadow: 0 8px 15px rgba(0,0,0,0.1);
             }}
+            .book-info {{
+                display: flex;
+                align-items: center;
+                gap: 20px;
+            }}
+            .book-thumb {{
+                width: 50px;
+                height: 75px;
+                object-fit: cover;
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
             .book-card h3 {{
                 margin: 0;
                 font-size: 1.2em;
@@ -217,6 +262,7 @@ def generate_index(output_dir="book_output"):
                 color: #bdc3c7;
                 font-size: 1.5em;
                 transition: color 0.2s;
+                padding-left: 15px;
             }}
             .book-card:hover .arrow {{
                 color: var(--accent-color);
