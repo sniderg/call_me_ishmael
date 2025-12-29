@@ -185,17 +185,78 @@ def process_epub(epub_path, book_id, target_words=2500):
     else:
         print("No cover image found.")
 
+    # Create images directory
+    images_output_dir = f"book_output/{book_id}/images"
+    if not os.path.exists(images_output_dir):
+        os.makedirs(images_output_dir)
+
     # 2. Iterate over every document in the book (Chapters, Intro, etc.)
     for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
         soup = BeautifulSoup(item.get_body_content(), 'html.parser')
         
-        # Get all top-level tags to iterate
+        # --- HANDLE IMAGES ---
+        # Find all images in this document and process them
+        for img_tag in soup.find_all('img'):
+            src = img_tag.get('src')
+            if not src:
+                continue
+                
+            # Resolve absolute path within EPUB based on current document path
+            # EPUB paths are always forward slashes
+            doc_dir = os.path.dirname(item.get_name())
+            
+            # Simple manual path resolution to avoid OS separator issues
+            if doc_dir:
+                absolute_href = f"{doc_dir}/{src}"
+            else:
+                absolute_href = src
+                
+            # Handle ".." in path
+            parts = absolute_href.split('/')
+            resolved_parts = []
+            for part in parts:
+                if part == '..':
+                    if resolved_parts:
+                        resolved_parts.pop()
+                elif part != '.':
+                    resolved_parts.append(part)
+            resolved_href = "/".join(resolved_parts)
+
+            # Find the image item in the book
+            img_item = book.get_item_with_href(resolved_href)
+            
+            if img_item:
+                # Use the basename for the saved file
+                img_filename = os.path.basename(resolved_href)
+                save_path = f"{images_output_dir}/{img_filename}"
+                
+                # Save image if not already saved
+                if not os.path.exists(save_path):
+                    with open(save_path, "wb") as f:
+                        f.write(img_item.get_content())
+                
+                # Update the source to point to our hosted images folder
+                # We use specific style to constrain images in email/web
+                img_tag['src'] = f"images/{img_filename}"
+                img_tag['style'] = "max-width: 100%; height: auto; display: block; margin: 20px auto;"
+            else:
+                 print(f"Warning: Could not find image {resolved_href}")
+
+        # Get all top-level tags to iterate from the modified soup
         tags = soup.body.find_all(recursive=False)
         if not tags:
             continue
             
         # Efficiently calculate remaining words for this chapter
-        chapter_word_counts = [len(tag.get_text().split()) for tag in tags]
+        # Note: Images now have text length 0, so we might want to add phantom words
+        chapter_word_counts = [] 
+        for tag in tags:
+             text_count = len(tag.get_text().split())
+             # Add weight for images to avoid huge emails with many images
+             img_count = len(tag.find_all('img'))
+             text_count += (img_count * 200) # 200 words equivalent per image
+             chapter_word_counts.append(text_count)
+             
         total_chapter_words = sum(chapter_word_counts)
         words_processed_in_chapter = 0
         
