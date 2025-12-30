@@ -20,7 +20,19 @@ def send_chunk_email(to_email, subject, html_content):
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = gmail_user
-    msg['To'] = to_email
+    
+    # Handle multiple recipients
+    if isinstance(to_email, str):
+        if ';' in to_email:
+            recipients = [e.strip() for e in to_email.split(';')]
+        elif ',' in to_email:
+            recipients = [e.strip() for e in to_email.split(',')]
+        else:
+            recipients = [to_email]
+    else:
+        recipients = to_email
+        
+    msg['To'] = ", ".join(recipients)
 
     # Attach HTML content
     part = MIMEText(html_content, 'html')
@@ -33,7 +45,7 @@ def send_chunk_email(to_email, subject, html_content):
         server.starttls()
         server.login(gmail_user, gmail_password)
         
-        server.sendmail(gmail_user, to_email, msg.as_string())
+        server.sendmail(gmail_user, recipients, msg.as_string())
         server.close()
         print(f"Email sent successfully to {to_email}")
         return True

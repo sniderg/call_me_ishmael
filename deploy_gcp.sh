@@ -28,7 +28,7 @@ gcloud functions deploy $FUNCTION_NAME \
     --entry-point=daily_emailer \
     --trigger-http \
     --allow-unauthenticated \
-    --set-env-vars GCS_BUCKET_NAME=$BUCKET_NAME,GMAIL_USER=$GMAIL_USER,GMAIL_APP_PASSWORD=$GMAIL_APP_PASSWORD,TARGET_EMAIL=$TARGET_EMAIL
+    --set-env-vars "GCS_BUCKET_NAME=$BUCKET_NAME,GMAIL_USER=$GMAIL_USER,GMAIL_APP_PASSWORD=$GMAIL_APP_PASSWORD,TARGET_EMAIL=$TARGET_EMAIL"
 
 echo "Function URL:"
 FUNC_URL=$(gcloud functions describe $FUNCTION_NAME --gen2 --region=$REGION --format='value(serviceConfig.uri)')
